@@ -1,0 +1,48 @@
+name:                fib
+version:             0.1.0.0
+github:              "gdstrong/fib"
+license:             BSD3
+author:              "Glenn Strong"
+maintainer:          "Glenn.Strong@scss.tcd.ie"
+copyright:           "(c) 2020 Glenn Strong"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/gdstrong/fib#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- parallel
+
+
+executables:
+  ex1:
+    main: ex1.hs
+  ex2:
+    main: ex2.hs
+  ex3:
+    main: ex3.hs
+  ex4:
+    main: ex4.hs
+  ex4b:
+    main: ex4b.hs
+  ex5:
+    main: ex5.hs
+  simple:
+    main: simple.hs
+
+
+# GThese options are global (because they are not indented into an 'executables' stanza)
+source-dirs: src
+ghc-options:
+  - -threaded
+  - -rtsopts
