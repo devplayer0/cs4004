@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a20c09e60be60ab294c2efcd0f81b3eda24d234d81a0a15cc4bd9396024ccab1
+-- hash: 5e6ad242696df83931514e58ac680cd25c8a96c7df3d2c2aed521e2f3b451602
 
 name:           fib
 version:        0.1.0.0
@@ -32,7 +32,7 @@ executable ex1
       Paths_fib
   hs-source-dirs:
       src
-  ghc-options: -threaded -rtsopts
+  ghc-options: -threaded -rtsopts -eventlog
   build-depends:
       base >=4.7 && <5
     , parallel
@@ -45,7 +45,7 @@ executable ex2
       Paths_fib
   hs-source-dirs:
       src
-  ghc-options: -threaded -rtsopts
+  ghc-options: -threaded -rtsopts -eventlog
   build-depends:
       base >=4.7 && <5
     , parallel
@@ -58,7 +58,7 @@ executable ex3
       Paths_fib
   hs-source-dirs:
       src
-  ghc-options: -threaded -rtsopts
+  ghc-options: -threaded -rtsopts -eventlog
   build-depends:
       base >=4.7 && <5
     , parallel
@@ -71,7 +71,7 @@ executable ex4
       Paths_fib
   hs-source-dirs:
       src
-  ghc-options: -threaded -rtsopts
+  ghc-options: -threaded -rtsopts -eventlog
   build-depends:
       base >=4.7 && <5
     , parallel
@@ -84,7 +84,7 @@ executable ex4b
       Paths_fib
   hs-source-dirs:
       src
-  ghc-options: -threaded -rtsopts
+  ghc-options: -threaded -rtsopts -eventlog
   build-depends:
       base >=4.7 && <5
     , parallel
@@ -97,7 +97,7 @@ executable ex5
       Paths_fib
   hs-source-dirs:
       src
-  ghc-options: -threaded -rtsopts
+  ghc-options: -threaded -rtsopts -eventlog
   build-depends:
       base >=4.7 && <5
     , parallel
@@ -110,7 +110,7 @@ executable simple
       Paths_fib
   hs-source-dirs:
       src
-  ghc-options: -threaded -rtsopts
+  ghc-options: -threaded -rtsopts -eventlog
   build-depends:
       base >=4.7 && <5
     , parallel

@@ -46,3 +46,4 @@ source-dirs: src
 ghc-options:
   - -threaded
   - -rtsopts
+  - -eventlog
