@@ -23,7 +23,6 @@ dependencies:
 - base >= 4.7 && < 5
 - parallel
 
-
 executables:
   ex1:
     main: ex1.hs
@@ -39,6 +38,8 @@ executables:
     main: ex5.hs
   simple:
     main: simple.hs
+  map:
+    main: map.hs
 
 
 # GThese options are global (because they are not indented into an 'executables' stanza)

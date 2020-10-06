@@ -12,4 +12,4 @@ fib d n = par nf1 (pseq nf2 (nf1 + nf2))
          where nf1 = fib (d-1) (n-1)
                nf2 = fib (d-1) (n-2)
 
-main = print $ fib 3 40
+main = print $ fib 15 40
