@@ -1,7 +1,7 @@
 module Shapes(
   Shape, Point, Vector, Transform, Drawing,
   point, getX, getY,
-  empty, circle, square,
+  empty, circle, square, mandelbrot,
   identity, translate, rotate, scale, (<+>),
   inside)  where
 
@@ -43,6 +43,7 @@ point = vector
 data Shape = Empty
            | Circle
            | Square
+           | Mandelbrot Int
              deriving Show
 
 empty, circle, square :: Shape
@@ -50,6 +51,22 @@ empty, circle, square :: Shape
 empty = Empty
 circle = Circle
 square = Square
+mandelbrot n = Mandelbrot n
+
+mNext :: Point -> Point -> Point
+mNext (Vector u v) (Vector x y) = Vector (x * x - y * y + u) (2 * x * y + v)
+
+mSeries :: Point -> [Point]
+mSeries p = iterate (mNext p) (Vector 0 0)
+
+fairlyClose :: Point -> Bool
+fairlyClose (Vector u v) = (u*u + v*v) < 100
+
+inMandelbrotSet :: Point -> Bool
+inMandelbrotSet p = all fairlyClose (mSeries p)
+
+approxInMandelbrot :: Int -> Point -> Bool
+approxInMandelbrot n p = all fairlyClose (take n (mSeries p))
 
 -- Transformations
 
@@ -86,15 +103,15 @@ inside1 :: Point -> (Transform, Shape) -> Bool
 inside1 p (t,s) = insides (transform t p) s
 
 insides :: Point -> Shape -> Bool
-p `insides` Empty = False
-p `insides` Circle = distance p <= 1
-p `insides` Square = maxnorm  p <= 1
-
+_ `insides` Empty        = False
+p `insides` Circle       = distance p <= 1
+p `insides` Square       = maxnorm  p <= 1
+p `insides` Mandelbrot n = approxInMandelbrot n p
 
 distance :: Point -> Double
-distance (Vector x y ) = sqrt ( x**2 + y**2 )
+distance (Vector x y) = sqrt (x**2 + y**2)
 
 maxnorm :: Point -> Double
-maxnorm (Vector x y ) = max (abs x) (abs y)
+maxnorm (Vector x y) = max (abs x) (abs y)
 
 testShape = (scale (point 10 10), circle)
