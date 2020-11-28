@@ -2,10 +2,21 @@
 module Math(
   Vector(Vec2, Vec3), Matrix(Mat2, Mat3),
 
+  interpolate, sample,
+
   vec2, vec3, getX, getY,
   mat2, mat3, ident2, ident3, mat2to3, transpose,
   dot, mf, mv, mm, det, adj, invert,
   ) where
+
+
+-- Generate an evenly spaced sample between two values (at the given position)
+-- e.g. sample -1.5 +1.5 25 2 = -1.25
+interpolate :: Double -> Double -> Int -> Int -> Double
+interpolate c0 c1 n i = c0 + ((c1-c0) / (fromIntegral $ n-1) * fromIntegral i)
+
+sample :: Int -> Int -> Double -> Int
+sample a b d = (floor $ d * fromIntegral (b - a)) + a
 
 -- Column Vector type
 data Vector = Vec2 Double Double

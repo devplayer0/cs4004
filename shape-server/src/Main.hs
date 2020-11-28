@@ -1,7 +1,7 @@
 module Main where
 
 import Shapes
-import Render (render, defaultDomain)
+import Render
 
 red = staticColor $ color 1 0 0 0.5
 blue = staticColor $ color 0 0 1 0.7
@@ -18,4 +18,4 @@ test = [
     drawing circle (staticColor $ color 0 1 0 0.5) (translate (point 0.1 0.2) <+> scale (point 0.4 0.5))
   ]
 
-main = render "output.png" (defaultDomain (256, 256)) test
+main = renderPngFile "output.png" (defaultDomain (256, 256)) test

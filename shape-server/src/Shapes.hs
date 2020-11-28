@@ -1,7 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 module Shapes(
   Point, Line, Transform(Affine), Shape,
-  Alpha, Color(Color), ColorMap, Coloring, Drawing,
+  Alpha, Color(Color), ColorMap, Coloring,
+  Drawing, Picture,
 
   line, point, identity, translate, scale, affine, rotate, shear, (<+>), applyAffine, reduceTransform, transform,
 
@@ -150,10 +151,12 @@ blendedColor = Blended
 data Drawing = Drawing Shape Coloring Transform
 drawing = Drawing
 
+type Picture = [Drawing]
+
 inside :: Point -> Drawing -> Bool
 inside p (Drawing s _ t) = intersects (t `transform` p) s
 
-onlyInside :: Point -> [Drawing] -> [Drawing]
+onlyInside :: Point -> Picture -> Picture
 onlyInside p d = filter (inside p) d
 
 colorAt :: Drawing -> Point -> Color
@@ -164,6 +167,6 @@ colorAt d p = blend (colorAt da p) (colorAt db p)
           da = Drawing s ca t
           db = Drawing s cb t
 
-blendedColorAt :: [Drawing] -> Point -> Color
+blendedColorAt :: Picture -> Point -> Color
 blendedColorAt [] _ = color 0 0 0 0
 blendedColorAt (d:ds) p = blend (d `colorAt` p) (ds `blendedColorAt` p)
