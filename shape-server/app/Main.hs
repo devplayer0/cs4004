@@ -1,9 +1,8 @@
 module Main where
 
-import Data.List
-
-import Control.Monad.Catch
-import qualified Language.Haskell.Interpreter as Hint
+import Control.Monad.Except
+import Codec.Picture
+import Graphics.Text.TrueType (loadFontFile)
 
 import Shapes
 import Render
@@ -29,23 +28,11 @@ test = [
 --main = renderPngFile "output.png" (defaultDomain (256, 256)) test
 
 testExpr = "let cool = gradientX (color 1 0 0 0) (color 0 0 1 0) in\n\
-\  [drawing square cool ((translate $ point 0.3 0.3) <+> (scale $ point 0.5 0.5))]"
+\  drawing square cool ((translate $ point 0.3 0.3) <+> (scale $ point 0.5 0.5))"
 
-errorString :: Hint.InterpreterError -> String
-errorString (Hint.WontCompile es) = intercalate "\n" (header : map unbox es)
-  where
-    header = "ERROR: Won't compile:"
-    unbox (Hint.GhcError e) = e
-errorString e = show e
+errorFont = ExceptT $ loadFontFile "error.ttf"
 
-evalPicture :: (Hint.MonadIO m, MonadMask m) => String -> m (Either Hint.InterpreterError Picture)
-evalPicture s = Hint.runInterpreter $ do
-  Hint.setImports ["Prelude", "Math", "Shapes"]
-  Hint.interpret s (Hint.as :: Picture)
-
-main = do
-  r <- evalPicture testExpr
-  case r of
-    Left err -> putStrLn $ errorString err
-    Right p ->
-      renderPngFile "output.png" (defaultDomain (256, 256)) p
+main = runExceptT $ do
+  f <- errorFont
+  img <- renderImageExpr (defaultDomain (1280, 720)) f 15 testExpr
+  lift $ writePng "output.png" img

@@ -23,8 +23,11 @@ dependencies:
   - base >= 4.7 && < 5
   - mtl
   - exceptions
+  - split
   - base64
   - JuicyPixels
+  - FontyFruity
+  - Rasterific
   - hint
   - blaze-html
   - scotty

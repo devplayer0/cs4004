@@ -2,10 +2,20 @@ module Render(
   Window,
 
   defaultDomain, pixel,
-  rgba8, renderPixel, renderImage, renderPng, renderPngFile
+  rgba8, renderPixel, renderImage, renderPng, renderPngFile,
+  drawLines, renderError, evalPicture, renderImageExpr,
   ) where
 
+import Data.List
+import Data.List.Split
+import Control.Monad.Catch
+
 import Codec.Picture
+import qualified Language.Haskell.Interpreter as Hint
+-- Just for text rendering!
+import Graphics.Text.TrueType (Font, loadFontFile)
+import qualified Graphics.Rasterific as Rasterific
+import qualified Graphics.Rasterific.Texture as RasterificTexture
 
 import Math
 import Shapes
@@ -38,6 +48,38 @@ renderPixel win pic x y =
 renderImage win pic = generateImage (renderPixel win pic) w h
   where Window _ _ (w, h) = win
 
+drawLines _ _ [] _ = return ()
+drawLines font size (l:ls) (Rasterific.V2 x y) =
+  let np = (Rasterific.V2 x (2 + (Rasterific.getPointSize size) + y)) in do
+    Rasterific.printTextAt font size np l
+    drawLines font size ls np
+
+renderError :: Window -> Font -> Float -> String -> Image PixelRGBA8
+renderError win font size msg =
+  Rasterific.renderDrawing w h (PixelRGBA8 255 255 255 255)
+    . Rasterific.withTexture (RasterificTexture.uniformTexture $ PixelRGBA8 255 0 0 255) $
+        drawLines font (Rasterific.PointSize size) (splitOn "\n" msg) (Rasterific.V2 0 0)
+  where Window _ _ (w, h) = win
+
 renderPng win pic = encodePng $ renderImage win pic
 
 renderPngFile path win pic = writePng path $ renderImage win pic
+
+errorString :: Hint.InterpreterError -> String
+errorString (Hint.WontCompile es) = intercalate "\n" (header : map unbox es)
+  where
+    header = "ERROR: Won't compile:"
+    unbox (Hint.GhcError e) = e
+errorString e = show e
+
+evalPicture :: (Hint.MonadIO m, MonadMask m) => String -> m (Either Hint.InterpreterError Picture)
+evalPicture s = Hint.runInterpreter $ do
+  Hint.setImports ["Prelude", "Math", "Shapes"]
+  Hint.interpret s (Hint.as :: Picture)
+
+renderImageExpr :: (Hint.MonadIO m, MonadMask m) => Window -> Font -> Float -> String -> m (Image PixelRGBA8)
+renderImageExpr win errFont errFontSize expr = do
+  r <- evalPicture expr
+  return $ case r of
+    Left err -> renderError win errFont errFontSize (errorString err)
+    Right p -> renderImage win p
