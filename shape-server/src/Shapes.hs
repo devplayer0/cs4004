@@ -12,6 +12,7 @@ module Shapes(
   distance, maxnorm, onLine, intersects,
 
   color, blend, staticColor, mappedColor, blendedColor,
+  gradientX,
   drawing, inside, onlyInside, colorAt, blendedColorAt,
   ) where
 
@@ -93,6 +94,10 @@ inMandelbrotSet p = all fairlyClose (mSeries p)
 approxInMandelbrot :: Int -> Point -> Bool
 approxInMandelbrot n p = all fairlyClose (take n (mSeries p))
 
+chooseMColor :: [a] -> [Point] -> a
+chooseMColor palette = (palette !!) . length . take n . takeWhile fairlyClose
+  where n = length palette - 1
+
 distance :: Point -> Double
 distance (Vec2 x y) = sqrt (x**2 + y**2)
 distance (Vec3 x y z) = sqrt (x**2 + y**2 + z**2)
@@ -128,8 +133,12 @@ p `intersects` Mandelbrot n = approxInMandelbrot n p
 p `intersects` Polygon ps   = insidePoly' p (last ps) ps False
 
 type Alpha = Double
-data Color = Color Double Double Double Alpha
-             deriving Show
+data Color = Color {
+    r :: Double
+  , g :: Double
+  , b :: Double
+  , a :: Alpha
+  }
 color = Color
 
 blend :: Color -> Color -> Color
@@ -147,6 +156,8 @@ data Coloring = Static Color
 staticColor = Static
 mappedColor = Custom
 blendedColor = Blended
+
+gradientX a b = mappedColor $ \_ (Vec2 x _) -> let nx = mapDom (-1) 1 x in blend (a { a = nx }) (b { a = 1 - nx })
 
 data Drawing = Drawing Shape Coloring Transform
 drawing = Drawing

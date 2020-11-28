@@ -2,7 +2,7 @@
 module Math(
   Vector(Vec2, Vec3), Matrix(Mat2, Mat3),
 
-  interpolate, sample,
+  interpolate, mapDom, sample,
 
   vec2, vec3, getX, getY,
   mat2, mat3, ident2, ident3, mat2to3, transpose,
@@ -14,6 +14,9 @@ module Math(
 -- e.g. sample -1.5 +1.5 25 2 = -1.25
 interpolate :: Double -> Double -> Int -> Int -> Double
 interpolate c0 c1 n i = c0 + ((c1-c0) / (fromIntegral $ n-1) * fromIntegral i)
+
+mapDom :: Fractional a => a -> a -> a -> a
+mapDom a b v = (v - a) / (b - a)
 
 sample :: Int -> Int -> Double -> Int
 sample a b d = (floor $ d * fromIntegral (b - a)) + a
