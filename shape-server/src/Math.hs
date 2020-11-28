@@ -1,4 +1,3 @@
-{-# LANGUAGE DataKinds #-}
 module Math(
   Vector(Vec2, Vec3), Matrix(Mat2, Mat3),
 

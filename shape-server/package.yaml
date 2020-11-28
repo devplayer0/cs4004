@@ -21,13 +21,24 @@ description:         Please see the README on GitHub at <https://github.com/devp
 
 dependencies:
   - base >= 4.7 && < 5
+  - mtl
+  - exceptions
+  - base64
   - JuicyPixels
+  - hint
+  - blaze-html
+  - scotty
+
+library:
+  source-dirs: src
 
 executables:
   shape-server:
     main:                Main.hs
-    source-dirs:         src
+    source-dirs:         app
     ghc-options:
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
+    dependencies:
+      - shape-server

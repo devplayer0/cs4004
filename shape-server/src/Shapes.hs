@@ -1,4 +1,3 @@
-{-# LANGUAGE DataKinds #-}
 module Shapes(
   Point, Line, Transform(Affine), Shape,
   Alpha, Color(Color), ColorMap, Coloring,
