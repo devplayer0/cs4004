@@ -1,8 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import Control.Monad.Except
+import Data.ByteString.UTF8
+import Data.ByteString.Base64.URL
 import Codec.Picture
 import Graphics.Text.TrueType (loadFontFile)
+import Web.Scotty
 
 import Shapes
 import Render
@@ -27,12 +31,15 @@ test = [
   ]
 --main = renderPngFile "output.png" (defaultDomain (256, 256)) test
 
-testExpr = "let cool = gradientX (color 1 0 0 0) (color 0 0 1 0) in\n\
-\  drawing square cool ((translate $ point 0.3 0.3) <+> (scale $ point 0.5 0.5))"
-
 errorFont = ExceptT $ loadFontFile "error.ttf"
 
 main = runExceptT $ do
-  f <- errorFont
-  img <- renderImageExpr (defaultDomain (1280, 720)) f 15 testExpr
-  lift $ writePng "output.png" img
+  ef <- errorFont
+
+  lift $ scotty 3000 $ do
+    get "/render/:expr/png" $ do
+      exprEnc <- param "expr"
+      img <- lift $ renderImageExpr (defaultDomain (1024, 1024)) ef 15 (toString $ decodeBase64Lenient exprEnc)
+
+      setHeader "Content-Type" "image/png"
+      raw $ encodePng $ img

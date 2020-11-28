@@ -164,7 +164,7 @@ drawing = Drawing
 type Picture = [Drawing]
 
 inside :: Point -> Drawing -> Bool
-inside p (Drawing s _ t) = intersects (t `transform` p) s
+inside p (Drawing s _ t) = (t `transform` p) `intersects` s
 
 onlyInside :: Point -> Picture -> Picture
 onlyInside p d = filter (inside p) d

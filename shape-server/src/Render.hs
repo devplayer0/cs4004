@@ -13,7 +13,7 @@ import Control.Monad.Catch
 import Codec.Picture
 import qualified Language.Haskell.Interpreter as Hint
 -- Just for text rendering!
-import Graphics.Text.TrueType (Font, loadFontFile)
+import Graphics.Text.TrueType (Font)
 import qualified Graphics.Rasterific as Rasterific
 import qualified Graphics.Rasterific.Texture as RasterificTexture
 
