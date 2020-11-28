@@ -1,14 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 module Shapes(
-  Point, Transform(Affine), Shape,
+  Point, Line, Transform(Affine), Shape,
   Alpha, Color(Color), ColorMap, Coloring, Drawing,
 
-  point, identity, translate, scale, affine, rotate, shear, (<+>), applyAffine, reduceTransform, transform,
+  line, point, identity, translate, scale, affine, rotate, shear, (<+>), applyAffine, reduceTransform, transform,
 
   empty, circle, square, mandelbrot, polygon,
   mNext, mSeries, fairlyClose, inMandelbrotSet, approxInMandelbrot,
 
-  distance, maxnorm, intersects,
+  distance, maxnorm, onLine, intersects,
 
   color, blend, staticColor, mappedColor, blendedColor,
   drawing, inside, onlyInside, colorAt, blendedColorAt,
@@ -20,6 +20,9 @@ type Point = Vector
 
 point :: Double -> Double -> Point
 point = vec2
+
+data Line = Line Point Point
+line = Line
 
 data Transform = Identity
            | Translate Vector
@@ -96,11 +99,32 @@ distance (Vec3 x y z) = sqrt (x**2 + y**2 + z**2)
 maxnorm :: Point -> Double
 maxnorm (Vec2 x y) = max (abs x) (abs y)
 
+onLine :: Point -> Line -> Bool
+(Vec2 px py) `onLine` (Line (Vec2 ax ay) (Vec2 bx by)) =
+  px <= max ax bx &&
+  px >= min ax bx &&
+  py <= max ay by &&
+  py >= min ay by
+
+-- https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
+insidePoly' :: Point -> Point -> [Point] -> Bool -> Bool
+insidePoly' _ _ [] i = i
+insidePoly' p (Vec2 jx jy) (nextJ:vs) inside = insidePoly' p nextJ vs nextInside
+  where
+    (Vec2 px py) = p
+    (Vec2 ix iy) = nextJ
+
+    nextInside =
+      if (iy > py) /= (jy > py) && px < (jx - ix) * (py - iy) / (jy - iy) + ix
+        then not inside
+        else     inside
+
 intersects :: Point -> Shape -> Bool
 _ `intersects` Empty        = False
 p `intersects` Circle       = distance p <= 1
 p `intersects` Square       = maxnorm  p <= 1
 p `intersects` Mandelbrot n = approxInMandelbrot n p
+p `intersects` Polygon ps   = insidePoly' p (last ps) ps False
 
 type Alpha = Double
 data Color = Color Double Double Double Alpha
