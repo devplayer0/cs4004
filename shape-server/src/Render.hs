@@ -1,5 +1,7 @@
 module Render(Window, defaultDomain, sample, render) where
 import Codec.Picture
+
+import Math
 import Shapes
 
 
