@@ -1,0 +1,40 @@
+name:                minesweeper
+version:             0.1.0.0
+github:              "devplayer0/cs4012"
+license:             BSD3
+author:              "Jack O'Sullivan"
+maintainer:          "osullj19@tcd.ie"
+copyright:           "2021 Jack O'Sullivan"
+
+extra-source-files:
+- README.md
+
+description:         Please see the README on GitHub at <https://github.com/devplayer0/cs4052/minesweeper>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+
+executables:
+  minesweeper-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - minesweeper
+
+tests:
+  minesweeper-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - minesweeper
