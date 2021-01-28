@@ -13,6 +13,12 @@ description:         Please see the README on GitHub at <https://github.com/devp
 
 dependencies:
 - base >= 4.7 && < 5
+#- unordered-containers
+- transformers
+- mtl
+- containers
+- pqueue
+- lens
 
 library:
   source-dirs: src
