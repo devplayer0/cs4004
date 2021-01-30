@@ -88,26 +88,26 @@ toLists = map (map snd) . List.groupBy grouper . Array.assocs
   where
     grouper = \((x, _), _) ((x2, _), _) -> x == x2
 
-squareAt :: CSP.Pos -> Board -> Square
-squareAt p b = b Array.! p
+squareAt :: Board -> CSP.Pos -> Square
+squareAt = (Array.!)
 
-neighbouringSquares :: CSP.Pos -> Board -> Set.Set CSP.Pos
-neighbouringSquares p b = CSP.neighbours p (bounds b)
+neighbouringSquares :: Board -> CSP.Pos -> Set.Set CSP.Pos
+neighbouringSquares b = CSP.neighbours (bounds b)
 
-neighbouringMines :: CSP.Pos -> Board -> Set.Set CSP.Pos
-neighbouringMines p b =
-  Set.filter filterer (neighbouringSquares p b)
+neighbouringMines :: Board -> CSP.Pos -> Set.Set CSP.Pos
+neighbouringMines b =
+  Set.filter filterer . neighbouringSquares b
   where
-    filterer = hasMine . flip squareAt b
+    filterer = hasMine . squareAt b
 
-neighbouringMineCount :: CSP.Pos -> Board -> Int
-neighbouringMineCount p b =
-  foldr reducer 0 (neighbouringSquares p b)
+neighbouringMineCount :: Board -> CSP.Pos -> Int
+neighbouringMineCount b =
+  foldr reducer 0 . neighbouringSquares b
   where
-    reducer = (+) . CSP.btoi . hasMine . flip squareAt b
+    reducer = (+) . CSP.btoi . hasMine . squareAt b
 
-charSquare :: CSP.Pos -> Board -> Char
-charSquare p b =
+charSquare :: Board -> CSP.Pos -> Char
+charSquare b p =
   case sq of
     Covered False False -> '#'
     Covered True  False -> '*'
@@ -117,11 +117,11 @@ charSquare p b =
       ns > 0 then intToDigit ns
       else '1'
   where
-    sq = squareAt p b
-    ns = neighbouringMineCount p b
+    sq = b `squareAt` p
+    ns = neighbouringMineCount b p
 
 strRow' :: Board -> Int -> String
-strRow' b x = [charSquare (x, y) b | y <- [0..snd (bounds b)-1]]
+strRow' b x = [charSquare b (x, y) | y <- [0..snd (bounds b)-1]]
 
 strBoard :: Board -> String
 strBoard b = List.intercalate "\n" $ [strRow' b x | x <- [0..fst (bounds b)-1]]
@@ -130,7 +130,7 @@ setSquare :: CSP.Pos -> Square -> Board -> Board
 setSquare p s b = b Array.// [(p, s)]
 
 changeSquare :: (Square -> Square) -> CSP.Pos -> Board -> Board
-changeSquare f p b = setSquare p (f $ squareAt p b) b
+changeSquare f p b = setSquare p (f $ b `squareAt` p) b
 
 data Game = Game {
   board :: Board
@@ -174,7 +174,7 @@ uncover p g
       -- Hit an unflagged mine, that's a loss...
       Covered True  False -> g { mistake = Just p }
       Covered False False ->
-        case neighbouringMineCount p b of
+        case neighbouringMineCount b p of
           -- Automatically uncover neighbours if there are no neighbouring mines
           0 -> foldr ($) uncovered uncoverNeighbours
           _ -> uncovered
@@ -182,7 +182,7 @@ uncover p g
       _ -> g
     where
       b = board g
-      sq = squareAt p b
+      sq = b `squareAt` p
 
       uncovered = checkWon g { board = setSquare p Uncovered b }
-      uncoverNeighbours = uncover <$> Set.toList (neighbouringSquares p b)
+      uncoverNeighbours = uncover <$> Set.toList (neighbouringSquares b p)

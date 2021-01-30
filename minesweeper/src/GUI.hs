@@ -32,19 +32,16 @@ cellText p g
     l = lost g
     w = won g
 
-    sq = squareAt p b
+    sq = b `squareAt` p
     m = hasMine sq
     f = isFlagged sq
     uc = uncovered sq
 
-    ns = neighbouringMineCount p b
+    ns = neighbouringMineCount b p
 
 cellEnabled :: Square -> Bool
 cellEnabled Uncovered = False
 cellEnabled _         = True
-
-bSquare :: CSP.Pos -> Behavior Board -> Behavior Square
-bSquare p b = squareAt p <$> b
 
 makeCell :: Behavior Game -> CSP.Pos -> UI (Element, Event (Game -> Game))
 makeCell bGame p = do
@@ -67,7 +64,7 @@ makeCell bGame p = do
     bBoard = board <$> bGame
 
     bText = cellText p <$> bGame
-    bEnabled = cellEnabled . squareAt p <$> bBoard
+    bEnabled = cellEnabled . flip squareAt p <$> bBoard
 
   element cell
     # sink UI.text bText
