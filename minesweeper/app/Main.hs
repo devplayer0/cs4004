@@ -1,6 +1,7 @@
 module Main where
 
-import Lib
+import qualified Game
+import qualified GUI
 
 main :: IO ()
-main = someFunc
+main = GUI.run

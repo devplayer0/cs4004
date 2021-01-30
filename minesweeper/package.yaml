@@ -12,19 +12,24 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/devplayer0/cs4052/minesweeper>
 
 dependencies:
-- base >= 4.7 && < 5
+- base >= 4.14 && < 5
 #- unordered-containers
 - transformers
 - mtl
+- array
 - containers
 - pqueue
 - lens
+- random
+- MonadRandom
+- random-shuffle
+- threepenny-gui
 
 library:
   source-dirs: src
 
 executables:
-  minesweeper-exe:
+  minesweeper:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

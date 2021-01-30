@@ -25,21 +25,27 @@ source-repository head
 library
   exposed-modules:
       CSP
-      Lib
+      Game
+      GUI
   other-modules:
       Paths_minesweeper
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      MonadRandom
+    , array
+    , base >=4.14 && <5
     , containers
     , lens
     , mtl
     , pqueue
+    , random
+    , random-shuffle
+    , threepenny-gui
     , transformers
   default-language: Haskell2010
 
-executable minesweeper-exe
+executable minesweeper
   main-is: Main.hs
   other-modules:
       Paths_minesweeper
@@ -47,12 +53,17 @@ executable minesweeper-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      MonadRandom
+    , array
+    , base >=4.14 && <5
     , containers
     , lens
     , minesweeper
     , mtl
     , pqueue
+    , random
+    , random-shuffle
+    , threepenny-gui
     , transformers
   default-language: Haskell2010
 
@@ -65,11 +76,16 @@ test-suite minesweeper-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      MonadRandom
+    , array
+    , base >=4.14 && <5
     , containers
     , lens
     , minesweeper
     , mtl
     , pqueue
+    , random
+    , random-shuffle
+    , threepenny-gui
     , transformers
   default-language: Haskell2010
