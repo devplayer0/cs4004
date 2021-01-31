@@ -21,16 +21,16 @@ import Debug.Trace
 
 cellText :: CSP.Pos -> Game -> String
 cellText p g
-  | l && not m && f                = "🏁"
-  | f || (w && m)                  = "🚩"
-  | l && fromJust (mistake g) == p = "🧨"
-  | l && m                         = "💣"
-  | uc && ns > 0                   = show ns
-  | otherwise                      = " "
+  | l && not m && f                 = "🏁"
+  | f || (w && m)                   = "🚩"
+  | l && fromJust (_mistake g) == p = "🧨"
+  | l && m                          = "💣"
+  | uc && ns > 0                    = show ns
+  | otherwise                       = " "
   where
-    b = board g
+    b = _board g
     l = lost g
-    w = won g
+    w = _won g
 
     sq = b `squareAt` p
     m = hasMine sq
@@ -61,10 +61,10 @@ makeCell bGame p = do
       ]
 
   let
-    bBoard = board <$> bGame
+    bBoard = _board <$> bGame
 
     bText = cellText p <$> bGame
-    bEnabled = cellEnabled . flip squareAt p <$> bBoard
+    bEnabled = cellEnabled . (`squareAt` p) <$> bBoard
 
   element cell
     # sink UI.text bText
@@ -82,7 +82,7 @@ setup genRef window = void $ mdo
   return window # set title "Minesweeper"
   UI.addStyleSheet window "styles.css"
 
-  let positions = List.groupBy (\(x, _) (x2, _) -> x == x2) $ Array.indices (board g)
+  let positions = List.groupBy (\(x, _) (x2, _) -> x == x2) $ Array.indices (_board g)
   cells' <- mapM (mapM $ makeCell bGame) positions
   let
     cells = (<$>) (element . fst) <$> cells'
@@ -91,7 +91,7 @@ setup genRef window = void $ mdo
   message <- UI.paragraph
   let
     msgText g
-      | won g     = "You win!"
+      | _won g    = "You win!"
       | lost g    = "You lose."
       | otherwise = ""
     bMsgText = msgText <$> bGame
