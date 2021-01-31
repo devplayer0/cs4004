@@ -37,7 +37,6 @@ library
     , base >=4.14 && <5
     , containers
     , lens
-    , mtl
     , pqueue
     , random
     , random-shuffle
@@ -59,7 +58,6 @@ executable minesweeper
     , containers
     , lens
     , minesweeper
-    , mtl
     , pqueue
     , random
     , random-shuffle
@@ -82,7 +80,6 @@ test-suite minesweeper-test
     , containers
     , lens
     , minesweeper
-    , mtl
     , pqueue
     , random
     , random-shuffle

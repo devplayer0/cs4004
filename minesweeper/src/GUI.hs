@@ -8,6 +8,7 @@ import Data.Maybe
 import qualified Data.List as List
 import qualified Data.Array as Array
 import Data.IORef
+import Text.Printf
 
 import System.Random
 
@@ -19,31 +20,60 @@ import Game
 
 import Debug.Trace
 
-cellText :: CSP.Pos -> Game -> String
-cellText p g
-  | l && not m && f                 = "🏁"
-  | f || (w && m)                   = "🚩"
-  | l && fromJust (_mistake g) == p = "🧨"
-  | l && m                          = "💣"
-  | uc && ns > 0                    = show ns
-  | otherwise                       = " "
-  where
-    b = _board g
-    l = lost g
-    w = _won g
-
-    sq = b `squareAt` p
-    m = hasMine sq
-    f = isFlagged sq
-    uc = uncovered sq
-
-    ns = neighbouringMineCount b p
+guiCellCharset = Charset {
+  sCovered = " "
+, sUncovered = \n -> if n > 0 then show n else " "
+, sFlag = "🚩"
+, sBadFlag = "🏁"
+, sMine = "💣"
+, sLoseMine = "🧨"
+}
 
 cellEnabled :: Square -> Bool
 cellEnabled Uncovered = False
 cellEnabled _         = True
 
-makeCell :: Behavior Game -> CSP.Pos -> UI (Element, Event (Game -> Game))
+percentage :: Float -> Int
+percentage = round . (*) 100
+
+type HSL = (Int, Float, Float)
+
+probToHSL :: Float -> HSL
+probToHSL p = (round $ 125 * (1 - p), 0.75, 0.5)
+
+hslStr :: HSL -> String
+hslStr (h, s, l) = printf "hsl(%d, %d%%, %d%%)" h (percentage s) (percentage l)
+
+cellColor :: Square -> Maybe CSP.Move -> String
+cellColor Uncovered _ = "white"
+cellColor _ Nothing   = "white"
+cellColor sq (Just (CSP.Move CSP.KnownVariable _ _)) = "blue"
+cellColor sq (Just m) = hslStr . probToHSL $ CSP._mineProbability m
+
+cellStyle :: Square -> Maybe CSP.Move -> [(String, String)]
+cellStyle sq m = [("background-color", cellColor sq m)]
+
+data GUIState = GUIState {
+  aiGame :: CSPGameState
+, moves :: [CSP.Move]
+}
+
+game_ :: GUIState -> Game.GameState
+game_ = fst . aiGame
+
+csp :: GUIState -> CSP.CSPState
+csp = snd . aiGame
+
+sTuple :: ([CSP.Move], CSPGameState) -> GUIState
+sTuple (ms, s') = GUIState s' ms
+
+changeCSPGame :: (CSPGameState -> CSPGameState) -> GUIState -> GUIState
+changeCSPGame f s = s { aiGame = f $ aiGame s }
+
+changeGame_ :: (GameState -> GameState) -> GUIState -> GUIState
+changeGame_ = changeCSPGame . changeGame
+
+makeCell :: Behavior GUIState -> CSP.Pos -> UI (Element, Event (GUIState  -> GUIState))
 makeCell bGame p = do
   cell <- UI.button #. "cell"
 
@@ -56,19 +86,26 @@ makeCell bGame p = do
 
   let
     events = concatenate <$> unions [
-        uncover p <$ eUncover
-      , toggleFlag p <$ eFlag
+        sTuple . uncoverCSP p . aiGame <$ eUncover
+      , changeGame_ (toggleFlag p) <$ eFlag
       ]
 
   let
-    bBoard = _board <$> bGame
+    bBoard = _board . game_ <$> bGame
+    bSquare = (`squareAt` p) <$> bBoard
 
-    bText = cellText p <$> bGame
-    bEnabled = cellEnabled . (`squareAt` p) <$> bBoard
+    fSq = (`squareAt` p) . _board . game_
+    fMove = List.find ((== p) . CSP._movePos) . moves
+    bStyleInfo = (\g -> (fSq g, fMove g)) <$> bGame
+
+    bText = strSquare guiCellCharset p . game_ <$> bGame
+    bEnabled = cellEnabled . (`squareAt` p)  <$> bBoard
+    bStyle = uncurry cellStyle <$> bStyleInfo
 
   element cell
-    # sink UI.text bText
+    # sink UI.text    bText
     # sink UI.enabled bEnabled
+    # sink UI.style   bStyle
 
   return (cell, events)
 
@@ -77,12 +114,14 @@ newGame = runFunction $ ffi "location.reload()"
 
 setup :: RandomGen g => IORef g -> Window -> UI ()
 setup genRef window = void $ mdo
-  g <- liftIO $ atomicModifyIORef genRef (\gen -> swap $ genGame gen 10 (9, 9))
+  g' <- liftIO $ atomicModifyIORef genRef (\gen -> swap $ genCSPGame gen 10 (9, 9))
+  let g_ = GUIState g' (fst . CSP.moves $ snd g')
+  let g = trace ("moves " ++ show (moves g_)) g_
 
   return window # set title "Minesweeper"
   UI.addStyleSheet window "styles.css"
 
-  let positions = List.groupBy (\(x, _) (x2, _) -> x == x2) $ Array.indices (_board g)
+  let positions = List.groupBy (\(x, _) (x2, _) -> x == x2) $ Array.indices (_board $ game_ g)
   cells' <- mapM (mapM $ makeCell bGame) positions
   let
     cells = (<$>) (element . fst) <$> cells'
@@ -94,7 +133,7 @@ setup genRef window = void $ mdo
       | _won g    = "You win!"
       | lost g    = "You lose."
       | otherwise = ""
-    bMsgText = msgText <$> bGame
+    bMsgText = msgText . game_ <$> bGame
 
   element message #
     sink UI.text bMsgText

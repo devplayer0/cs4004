@@ -2,7 +2,7 @@
 module Game where
 
 import Control.Monad
-import Control.Monad.State
+import Control.Monad.Trans.State
 import Control.Lens
 
 import Data.Maybe
@@ -16,6 +16,8 @@ import System.Random.Shuffle
 import Control.Monad.Random
 
 import qualified CSP
+
+import Debug.Trace
 
 chunksOf :: Int -> [a] -> [[a]]
 chunksOf _ [] = []
@@ -53,7 +55,7 @@ type Bounds = CSP.Pos
 type Board = Array.Array CSP.Pos Square
 
 bounds :: Board -> Bounds
-bounds sqs = let (_, (rows, cols)) = Array.bounds sqs in (rows+1, cols+1)
+bounds sqs = let (_, (width, height)) = Array.bounds sqs in (width+1, height+1)
 
 fromBool :: Bool -> Square
 fromBool m = Covered m False
@@ -61,13 +63,13 @@ fromBool m = Covered m False
 fromBools :: [[Bool]] -> Board
 fromBools bools = Array.array ((0, 0), bs) $ convert bools
   where
-    row :: [Bool] -> [(Int, Square)]
-    row = zip [0..] . map fromBool
+    makeRow :: [Bool] -> [(Int, Square)]
+    makeRow = zip [0..] . map fromBool
 
     convert :: [[Bool]] -> [(CSP.Pos, Square)]
-    convert = concatMap (\(x, row) -> map (\(y, s) -> ((x, y), s)) row) . zip [0..] . map row
+    convert = concatMap (\(y, row) -> map (\(x, s) -> ((x, y), s)) row) . zip [0..] . map makeRow
 
-    bs = (length bools - 1, length (head bools) - 1)
+    bs = (length (head bools) - 1, length bools - 1)
 
 fromInts :: [[Int]] -> Board
 fromInts = fromBools . map (map CSP.itob)
@@ -81,9 +83,9 @@ testBoard = fromInts [
   ]
 
 genBoard :: RandomGen g => g -> Int -> Bounds -> (Board, g)
-genBoard g n (rows, cols) = runRand (do
-    bs <- shuffleM $ replicate n True ++ replicate (rows * cols - n) False
-    return $ fromBools $ chunksOf cols bs
+genBoard g n (width, height) = runRand (do
+    bs <- shuffleM $ replicate n True ++ replicate (height * width - n) False
+    return $ fromBools $ chunksOf width bs
   ) g
 
 toLists :: Board -> [[Square]]
@@ -109,72 +111,117 @@ neighbouringMineCount b =
   where
     reducer = (+) . CSP.btoi . hasMine . squareAt b
 
-charSquare :: Board -> CSP.Pos -> Char
-charSquare b p =
-  case sq of
-    Covered False False -> '#'
-    Covered True  False -> '*'
-    Covered True  True  -> 'F'
-    Covered False True  -> 'f'
-    _ -> if
-      ns > 0 then intToDigit ns
-      else '1'
-  where
-    sq = b `squareAt` p
-    ns = neighbouringMineCount b p
-
-strRow' :: Board -> Int -> String
-strRow' b x = [charSquare b (x, y) | y <- [0..snd (bounds b)-1]]
-
-strBoard :: Board -> String
-strBoard b = List.intercalate "\n" $ [strRow' b x | x <- [0..fst (bounds b)-1]]
-
 setSquare :: CSP.Pos -> Square -> Board -> Board
 setSquare p s b = b Array.// [(p, s)]
 
 changeSquare :: (Square -> Square) -> CSP.Pos -> Board -> Board
 changeSquare f p b = setSquare p (f $ b `squareAt` p) b
 
-data Game = Game {
+data GameState = GameState {
   _board :: Board
 , _mistake :: Maybe CSP.Pos
 , _won :: Bool
 } deriving (Show)
-makeLenses  ''Game
+makeLenses  ''GameState
 
-lost :: Game -> Bool
+lost :: GameState -> Bool
 lost = isJust . _mistake
 
-changeBoard :: (Board -> Board) -> Game -> Game
+data Charset = Charset {
+  sCovered :: String
+, sUncovered :: Int -> String
+, sFlag :: String
+, sBadFlag :: String
+, sMine :: String
+, sLoseMine :: String
+}
+
+defaultCharset = Charset {
+  sCovered   = "#"
+, sUncovered = \n -> if n > 0 then show n else " "
+, sFlag      = "F"
+, sBadFlag   = "f"
+, sMine      = "*"
+, sLoseMine  = "X"
+}
+
+strSquare :: Charset -> CSP.Pos -> GameState -> String
+strSquare cs p g = f' cs
+  where
+    f'
+      | l && not m && f                 = sBadFlag
+      | f || (w && m)                   = sFlag
+      | l && fromJust (_mistake g) == p = sLoseMine
+      | l && m                          = sMine
+      | uc                              = (`sUncovered` ns)
+      | otherwise                       = sCovered
+
+    b = _board g
+    l = lost g
+    w = _won g
+
+    sq = b `squareAt` p
+    m = hasMine sq
+    f = isFlagged sq
+    uc = uncovered sq
+
+    ns = neighbouringMineCount b p
+
+strRow :: GameState -> Int -> String
+strRow g r = concat [strSquare defaultCharset (x, r) g | x <- [0..fst (bounds $ _board g)-1]]
+
+strBoard :: GameState -> String
+strBoard g = List.intercalate "\n" $ [strRow g r | r <- [0..snd (bounds $ _board g)-1]]
+
+strGame :: GameState -> String
+strGame g = strBoard g ++ msg
+  where
+    msg
+      | lost g    = "\nGame lost."
+      | _won g    = "\nGame won!"
+      | otherwise = ""
+
+changeBoard :: (Board -> Board) -> GameState -> GameState
 changeBoard f g = g & board %~ f
 
-game :: Board -> Game
-game b = Game { _board = b, _mistake = Nothing, _won = False }
+game :: Board -> GameState
+game b = GameState { _board = b, _mistake = Nothing, _won = False }
   where
     mineCount = foldr ((+) . CSP.btoi . hasMine) 0 $ Array.elems b
 
-genGame :: RandomGen g => g -> Int -> Bounds -> (Game, g)
+genGame :: RandomGen g => g -> Int -> Bounds -> (GameState, g)
 genGame gen n bs = let (b, gen') = genBoard gen n bs in (game b, gen')
 
-toggleFlag :: CSP.Pos -> Game -> Game
+toggleFlag :: CSP.Pos -> GameState -> GameState
+toggleFlag p g | trace ("toggleFlag "++show p) False = undefined
 toggleFlag p g
   -- If the game is won / lost, do nothing
   | _won g || lost g = g
   | otherwise = changeBoard (changeSquare toggleFlag' p) g
 
-hasWon :: Game -> Bool
+hasWon :: GameState -> Bool
 hasWon = all hasMine . filter (not . uncovered) . Array.elems . _board
 
-checkWon :: Game -> Game
+checkWon :: GameState -> GameState
 checkWon g = g & won .~ hasWon g
 
-type GameState = State Game
+type GameT = StateT GameState
+type Game = StateT GameState Identity
 
-execGame :: GameState a -> Game -> Game
+execGameT :: Monad m => GameT m a -> GameState -> m GameState
+execGameT = execStateT
+
+runGameT :: Monad m => GameT m a -> GameState -> m (a, GameState)
+runGameT = runStateT
+
+execGame :: Game a -> GameState -> GameState
 execGame = execState
 
-uncoverHook' :: GameState () -> CSP.Pos -> GameState ()
-uncoverHook' hook p = do
+type UncoverHook m = CSP.Pos -> GameState -> m ()
+
+-- Reader?
+uncoverHookT :: Monad m => UncoverHook m -> CSP.Pos -> GameT m ()
+uncoverHookT hook p = do
   g <- get
 
   -- Only keep going if the game hasn't been won / lost
@@ -185,20 +232,94 @@ uncoverHook' hook p = do
       Covered False False -> do
         board %= setSquare p Uncovered
         modify checkWon
-        hook
+        get >>= lift . hook p
 
-        b <- use board
+        b <- gets _board
         when (b `neighbouringMineCount` p == 0) $
           -- Automatically uncover neighbours if there are no neighbouring mines
-          mapM_ (uncoverHook' hook) $ Set.toList (b `neighbouringSquares` p)
+          mapM_ (uncoverHookT hook) $ Set.toList (b `neighbouringSquares` p)
       -- Do nothing if the square has already been uncovered or is flagged
       _ -> return ()
 
-uncoverHook :: GameState () -> CSP.Pos -> Game -> Game
-uncoverHook hook = execGame . uncoverHook' hook
+uncoverHook :: Monad m => UncoverHook m -> CSP.Pos -> GameState -> m GameState
+uncoverHook hook = execGameT . uncoverHookT hook
 
-uncover' :: CSP.Pos -> GameState()
-uncover' = uncoverHook' (return ())
+uncover' :: CSP.Pos -> Game ()
+uncover' = uncoverHookT (\_ _ -> return ())
 
-uncover :: CSP.Pos -> Game -> Game
+uncover :: CSP.Pos -> GameState -> GameState
 uncover = execGame . uncover'
+
+-- Game + CSP solver
+
+type CSPGameState = (GameState, CSP.CSPState)
+cspGame :: Board -> CSPGameState
+cspGame b = (game b, CSP.newMinesweeper (bounds b) mineCount)
+  where
+    mineCount = foldr ((+) . CSP.btoi . hasMine) 0 $ Array.elems b
+
+genCSPGame :: RandomGen g => g -> Int -> Bounds -> (CSPGameState, g)
+genCSPGame gen n bs = let (b, gen') = genBoard gen n bs in (cspGame b, gen')
+
+genCSPGamesForever :: RandomGen g => g -> Int -> Bounds -> [CSPGameState]
+genCSPGamesForever gen n bs = g:genCSPGamesForever nextGen n bs
+  where
+    (g, nextGen) = genCSPGame gen n bs
+
+cspHook :: CSP.Pos -> GameState -> CSP.CSP ()
+cspHook p g = CSP.playMove' (CSP.Square p ns)
+  where ns = _board g `neighbouringMineCount` p
+
+uncoverCSP' :: CSP.Pos -> GameT CSP.CSP [CSP.Move]
+uncoverCSP' p = do
+  -- Do all the uncovering
+  uncoverHookT cspHook p
+
+  (moves, mines) <- lift $ gets CSP.moves
+
+  -- Flag any mines and push them into the state
+  mapM_ (\p -> do
+    modify $ toggleFlag p
+    lift $ CSP.addMine' p
+    ) mines
+
+  return moves
+
+-- uncoverCSP uncovers a mine
+uncoverCSP :: CSP.Pos -> CSPGameState -> ([CSP.Move], CSPGameState)
+uncoverCSP p s = (moves, (g, c))
+  where
+    ((moves, g), c) = uncurry (CSP.runMinesweeper  . runGameT (uncoverCSP' p)) s
+
+aiPlayNext :: CSPGameState -> CSPGameState
+aiPlayNext cspG = uncurry (CSP.runMinesweeper . execGameT playNext) cspG
+  where
+    (g, c) = cspG
+
+    playNext = do
+      (moves, mines) <- lift $ gets CSP.moves
+
+      mapM_ (\p -> do
+        modify $ toggleFlag p
+        lift $ CSP.addMine' p
+        ) mines
+
+      let
+        move' = head moves
+        move  = trace (show c ++ strGame g ++ "\nPlaying " ++ show move') move'
+      unless (List.null moves) . void . uncoverCSP' $ CSP._movePos move
+
+aiPlayThrough :: CSPGameState -> CSPGameState
+aiPlayThrough cspG
+  | _won g || lost g = cspG
+  | otherwise        = aiPlayThrough $ aiPlayNext cspG
+  where
+    (g, _) = cspG
+
+aiMeasureSuccess :: Int -> Int -> Bounds -> Float
+aiMeasureSuccess n nms bs = CSP.sumWith (fromIntegral . CSP.btoi . _won . fst) games / fromIntegral n
+  where
+    games = take n . map aiPlayThrough $ genCSPGamesForever (mkStdGen 1337) nms bs
+
+changeGame :: (GameState -> GameState) -> CSPGameState -> CSPGameState
+changeGame f (g, c) = (f g, c)
