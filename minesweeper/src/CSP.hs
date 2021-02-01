@@ -348,16 +348,6 @@ expectedMines ss = fromIntegral (totalMines ss) / fromIntegral (ssSolutionCount 
 applyVariablesAll :: Variables -> Constraints -> Constraints
 applyVariablesAll vars = filter (not . isEmpty_) . map (applyVariables vars)
 
---tryAssignment :: Variables -> Constraint -> Bool
---tryAssignment vars c
---  | assigned^.rhs < 0 = False
---  | assigned^.isEmpty && assigned^.rhs /= 0 = False
---  where
---    assigned = applyVariables vars c
---
---tryAssignments :: Variables -> Constraints -> Bool
---tryAssignments vars = all $ tryAssignment vars
-
 tryAssignment :: Variables -> Constraint -> Maybe Constraint
 tryAssignment vars c
   | assigned^.rhs < 0 = Nothing
@@ -386,22 +376,11 @@ getRestricted (Constraint lhs rhs)
 findRestricted :: Constraints -> [Variable]
 findRestricted = concatMap getRestricted
 
---findRestricted :: Constraints -> Maybe Variable
---findRestricted = firstJust . map getRestricted
---findRestricted = map getRestricted
-
 -- Return the variables appearing most frequently in the provided constraints
 mostConstrained :: Constraints -> [Pos]
 mostConstrained cs = map fst . List.sortBy (\(_, n) (_, n2) -> compare n2 n) $ Map.toList topMap
   where
     topMap = Map.unionsWith (+) $ map (Map.fromSet (const 1) . _lhs) cs
-
---mostConstrainedF :: Constraints -> Variables -> [Pos]
---mostConstrainedF cs = List.sortBy compare' . Map.keys
---  where
---    top = Map.unionsWith (+) $ map (Map.fromSet (const 1) . _lhs) cs
---    value = (top Map.!)
---    compare' = \a b -> compare (value a) (value b)
 
 -- nextAssignments finds the next variable to assign to and its possible values,
 -- in order of:
@@ -412,8 +391,6 @@ nextAssignments :: Constraints -> Variables -> (Pos, [Bool])
 --nextAssignments cs vars | trace ("nextAssignments " ++ show cs ++ " " ++ show vars) False = undefined
 nextAssignments cs vars =
   case findRestricted cs of
-    --(p, v):_ -> [Map.insert p v vars]
-    --[]       -> [Map.insert most False vars, Map.insert most True vars]
     (p, v):_ -> (p, [v])
     []       -> (most, [False, True])
     where
@@ -422,17 +399,8 @@ nextAssignments cs vars =
 ssItem :: Solution -> (Int, SolutionTallies)
 ssItem s = (sumWith btoi s, SolutionTallies { tallies = Map.map btoi s, solutionCount = 1 } )
 
---makeSolutionSet' :: SolutionTallies -> SolutionSet
---makeSolutionSet' s = Map.singleton (ssItem s) s
---  where
---    mineCount = Map.foldr' (+) 0 s
-
--- Construct a solution set from a list of solutions
 makeSolutionSet :: [Solution] -> SolutionSet
 makeSolutionSet ss = Map.fromListWith combineTallies (map ssItem ss)
-
---mergeSolutions :: SolutionSet -> SolutionSet -> SolutionSet
---mergeSolutions = Map.unionWith (Map.unionWith (+))
 
 solutions' :: Constraints -> Variables -> [Solution]
 -- succeeded all the way down, solution found!
@@ -452,34 +420,15 @@ solutions' cs vars =
 solutions :: Constraints -> SolutionSet
 solutions cs = makeSolutionSet $ solutions' cs Map.empty
 
+nonEmpty :: [SolutionSet] -> [SolutionSet]
+nonEmpty = filter (not . Map.null)
+
 -- removeInfeasible filters solution sets by removing from each set those
 -- solutions which require too few or too many mines in combination with other
 -- sets.
 -- For example, if a group of solutions in a set require 2 mines, and all the
 -- groups in two other sets require at minimum 3 and 4 respectively, but there
 -- are only 8 mines left, the group of 2 will be dropped from that set
---removeInfeasible' :: Int -> [SolutionSet] -> SolutionSet -> SolutionSet
---removeInfeasible' total others = Map.filterWithKey (\n _ -> n >= newMin && n <= newMax)
---  where
---    minRest = sumWith minMines others
---    maxRest = sumWith maxMines others
---
---    newMin = total - minRest
---    newMax = total - maxRest
---
---mapEachWith :: ([a] -> a -> b) -> [a] -> [b]
---mapEachWith f xs = map mapper xs
---  where
---    indexed = zip [0..] xs
---
---removeInfeasible :: Int -> [SolutionSet] -> [SolutionSet]
---removeInfeasible total sss = map mapper
---  where
---    indexed = zip [0..] sss
-
-nonEmpty :: [SolutionSet] -> [SolutionSet]
-nonEmpty = filter (not . Map.null)
-
 removeInfeasible :: Int -> [SolutionSet] -> [SolutionSet]
 --removeInfeasible total sss | trace ("removeInfeasible " ++ show sss) False = undefined
 removeInfeasible total sss = nonEmpty $ map mapper indexed
@@ -488,8 +437,6 @@ removeInfeasible total sss = nonEmpty $ map mapper indexed
 
     mapper (i, ss) = Map.filterWithKey (\n _ -> n >= newMin && n <= newMax) ss
       where
-        --notCurrent x | trace ("notCurrent "++show x++"\n\n"++show indexed) False = undefined
-        --notCurrent x = (/=) i $ fst x
         notCurrent = (/=) i . fst
 
         minRest  = sumWith (minMines . snd) $ filter notCurrent indexed
@@ -501,21 +448,15 @@ removeInfeasible total sss = nonEmpty $ map mapper indexed
         newMin = maxRest
         newMax = total - minRest
 
---findCertain :: SolutionTallies -> [Variable]
---findCertain css = Map.toList . Map.map itob . Map.filter (sCount ==) $ tallies css
---  where
---    sCount = solutionCount css
---findCertain :: SolutionSet -> [Variable]
---findCertain ss = Map.toList . Map.map itob . Map.filter (sCount ==) $ tallies css
---  where
---    css' = collapseSolutionSet ss
---    css = trace ("collapsed " ++ show css') css'
---    sCount = solutionCount css
+-- findCertain fines any variables whose values can be inferred (either 1 or 0
+-- in all solutions)
 findCertain :: CollapsedSolutions -> [Variable]
 findCertain css = Map.toList . Map.map itob . Map.filter (sCount ==) $ tallies css
   where
     sCount = solutionCount css
 
+-- A "crap shoot" move is a 50/50 guess which occurs when all solutions require
+-- the same number of mines and all neighbours for variables are known
 crapShoot :: CSPState -> SolutionSet -> Maybe Move
 crapShoot m ss
   | Map.size ss == 1 && allKnown = Just $ Move CrapShoot p probMine
@@ -530,30 +471,16 @@ crapShoot m ss
     (p, n) = List.minimumBy (\(_, n) (_, n2) -> compare n n2) $ Map.toList ts
     probMine = fromIntegral n / fromIntegral (solutionCount sts)
 
---guesses :: SolutionSet -> [Move]
-----guesses ss = List.sort $ concatMap movesForGroup ss
---guesses ss = List.sort $ movesForGroup css
---  where
---    --sCount = sumWith solutionCount css
---    --sCount = ssSolutionCount ss
---    css = collapseSolutionSet ss
---    sCount = solutionCount css
---    -- P(mine) = solutions with mine / total solutions
---    countToProbability n = fromIntegral n / fromIntegral sCount
---    movesForGroup = map (uncurry (Move Guess)) . Map.toList . Map.map countToProbability . tallies
---    --countToProbability = flip (/) (fromIntegral sCount) . fromIntegral
 -- Find the probabilities there's a mine for every variable (certainties are filtered out!)
 guesses :: CollapsedSolutions -> [Move]
 --guesses ss = List.sort $ concatMap movesForGroup ss
 guesses css = List.sort . map (uncurry (Move Guess)) . filter ((>0) . snd) . Map.toList . Map.map countToProbability $ tallies css
   where
-    --sCount = sumWith solutionCount css
-    --sCount = ssSolutionCount ss
     sCount = solutionCount css
     -- P(mine) = solutions with mine / total solutions
     countToProbability n = fromIntegral n / fromIntegral sCount
-    --countToProbability = flip (/) (fromIntegral sCount) . fromIntegral
 
+-- The probability an unconstrained square has a mine
 nonConstrainedChance :: Int -> [SolutionSet] -> Float
 nonConstrainedChance remaining sss = (rf - sum (map expectedMines sss)) / rf
   where rf = fromIntegral remaining
@@ -594,22 +521,12 @@ weakHeuristic m = concat [
     cs = _constraints m
 
     vars = _variables m
-    --boundary = Set.fromList . filter (`Map.member` vars) $ mostConstrained cs
     boundary = Set.fromList $ mostConstrained cs
     withoutBoundary = filter (\p -> not $ p `Set.member` boundary)
 
---solutions'' :: Constraints -> Variables -> SolutionSet -> SolutionSet
---solutions'' [] vs s = Map.alter (Just . alterer) mineCount s
---  where
---    intVs = Map.map btoi vs
---    mineCount = Map.foldr' (+) 0 intVs
---
---    alterer Nothing = intVs
---    alterer (Just existing) = Map.unionWith (+) existing intVs
---solutions'' [] vs s = mergeSolutions (makeSolutionSet $ makeSolution vs) s
-
 -- Stream of possible moves that can be made in the current state, ordered in
--- ascending probability of a mine. Duplicates may be present!
+-- ascending probability of a mine. Duplicates may be present! Also returns any
+-- positions which were inferred to be mines
 
 -- Might return so-called  so-called "crap shoots", which should be played first
 -- to get toss up guesses out of the way)

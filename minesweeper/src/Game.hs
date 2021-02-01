@@ -193,7 +193,7 @@ genGame :: RandomGen g => g -> Int -> Bounds -> (GameState, g)
 genGame gen n bs = let (b, gen') = genBoard gen n bs in (game b, gen')
 
 toggleFlag :: CSP.Pos -> GameState -> GameState
-toggleFlag p g | trace ("toggleFlag "++show p) False = undefined
+--toggleFlag p g | trace ("toggleFlag "++show p) False = undefined
 toggleFlag p g
   -- If the game is won / lost, do nothing
   | _won g || lost g = g
@@ -219,7 +219,6 @@ execGame = execState
 
 type UncoverHook m = CSP.Pos -> GameState -> m ()
 
--- Reader?
 uncoverHookT :: Monad m => UncoverHook m -> CSP.Pos -> GameT m ()
 uncoverHookT hook p = do
   g <- get
@@ -305,8 +304,8 @@ aiPlayNext cspG = uncurry (CSP.runMinesweeper . execGameT playNext) cspG
         ) mines
 
       let
-        move' = head moves
-        move  = trace (show c ++ strGame g ++ "\nPlaying " ++ show move') move'
+        move = head moves
+        --move  = trace (show c ++ strGame g ++ "\nPlaying " ++ show move') move'
       unless (List.null moves) . void . uncoverCSP' $ CSP._movePos move
 
 aiPlayThrough :: CSPGameState -> CSPGameState
@@ -316,6 +315,8 @@ aiPlayThrough cspG
   where
     (g, _) = cspG
 
+-- Generate a number of games and run the solver over each until they are either
+-- won / lost, returning the fraction of won games
 aiMeasureSuccess :: Int -> Int -> Bounds -> Float
 aiMeasureSuccess n nms bs = CSP.sumWith (fromIntegral . CSP.btoi . _won . fst) games / fromIntegral n
   where
